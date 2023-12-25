@@ -1,9 +1,11 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::OsString;
+
 use std::path::PathBuf;
 use std::rc::Rc;
 use thiserror::Error;
+
+use crate::node::{Node, NodeData, Pointer};
 
 #[derive(Error, Debug)]
 pub enum TreeError {
@@ -13,43 +15,37 @@ pub enum TreeError {
     StackIsEmptyError,
     #[error("CannotGetFileNameError")]
     CannotGetFileNameError,
+    #[error("EmptyTreeError")]
+    EmptyTreeError,
 }
 
 #[derive(Debug)]
-struct Node<V> {
-    data: Option<V>,
-    children: Option<HashMap<OsString, Pointer<V>>>,
-}
-
-type Pointer<T> = Rc<RefCell<Node<T>>>;
-
-#[derive(Debug)]
-struct Tree<V> {
-    root: Pointer<V>,
+pub struct Tree {
+    root: Pointer<NodeData>,
     size: u32,
 }
 
-impl<V> Tree<V>
-where
-    V: Copy,
-{
-    pub fn new() -> Tree<V> {
+impl Tree {
+    pub fn new() -> Tree {
         Tree {
             root: Rc::new(RefCell::new(Node {
-                data: None,
+                value: None,
+                parent: None,
                 children: Some(HashMap::new()),
             })),
             size: 0,
         }
     }
 
-    pub fn add(&self, path: PathBuf, value: V) -> Result<(), TreeError> {
+    pub fn add(&self, value: NodeData) -> Result<(), TreeError> {
         let mut curr = self.root.clone();
 
-        let filename =
-            path.file_name().ok_or(TreeError::CannotGetFileNameError)?;
+        let filename = value
+            .path
+            .file_name()
+            .ok_or(TreeError::CannotGetFileNameError)?;
 
-        for c in path.components() {
+        for c in value.path.components() {
             let comp_str = c.as_os_str();
             let is_leaf_node = comp_str == filename;
 
@@ -61,7 +57,12 @@ where
                 }
                 None => {
                     let new_node = Rc::new(RefCell::new(Node {
-                        data: if is_leaf_node { Some(value) } else { None },
+                        value: if is_leaf_node {
+                            Some(value.clone())
+                        } else {
+                            None
+                        },
+                        parent: Some(curr.clone()),
                         children: if is_leaf_node {
                             None
                         } else {
@@ -84,10 +85,14 @@ where
         Ok(())
     }
 
+    pub fn get_root(&self) -> Pointer<NodeData> {
+        self.root.clone()
+    }
+
     fn get_child(
-        curr: &Rc<RefCell<Node<V>>>,
+        curr: &Pointer<NodeData>,
         comp_str: &std::ffi::OsStr,
-    ) -> Result<Option<Rc<RefCell<Node<V>>>>, TreeError> {
+    ) -> Result<Option<Pointer<NodeData>>, TreeError> {
         let children = &curr.borrow().children;
         let child = children
             .as_ref()
@@ -105,23 +110,23 @@ mod tests {
     use super::*;
     #[test]
     fn test_new() {
-        let tree: Tree<u32> = Tree::new();
+        let tree: Tree = Tree::new();
         assert_eq!(tree.size, 0);
     }
 
     #[test]
     fn test_add() {
-        let tree: Tree<u32> = Tree::new();
+        let tree: Tree = Tree::new();
 
-        let x = PathBuf::from_str("./a/b/c/file.txt").expect("");
-        let y = PathBuf::from_str("./a/b/file.txt").expect("");
-        let z = PathBuf::from_str("./a/c/file.txt").expect("");
-        let z2 = PathBuf::from_str("./a/b/c/file2.txt").expect("");
+        let x = NodeData::from_str("./a/b/c/file.txt").expect("");
+        let y = NodeData::from_str("./a/b/file.txt").expect("");
+        let z = NodeData::from_str("./a/c/file.txt").expect("");
+        let z2 = NodeData::from_str("./a/b/c/file2.txt").expect("");
 
-        tree.add(x, 0);
-        tree.add(y, 0);
-        tree.add(z, 0);
-        tree.add(z2, 0);
+        tree.add(x);
+        tree.add(y);
+        tree.add(z);
+        tree.add(z2);
 
         // let cmp = x.ancestors().partial_cmp(y.ancestors()).expect("msg");
         // println!("Compare x={:?} y={:?} {:?}", x, y, cmp);

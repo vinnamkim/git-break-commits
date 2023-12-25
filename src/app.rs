@@ -1,4 +1,11 @@
+use std::ffi::OsString;
+
 use ratatui::widgets::ListState;
+
+use crate::node::{
+    ItemMarkable, NameGettable, Node, NodeData, NodeItem, Pointer,
+};
+use crate::tree::{Tree, TreeError};
 
 pub enum Action {
     Tick,
@@ -8,9 +15,10 @@ pub enum Action {
     None,
 }
 
-struct StatefulList<T> {
-    state: ListState,
-    items: Vec<T>,
+#[derive(Debug, Default)]
+pub struct StatefulList<T> {
+    pub state: ListState,
+    pub items: Vec<T>,
 }
 
 impl<T> StatefulList<T> {
@@ -26,7 +34,7 @@ impl<T> StatefulList<T> {
         StatefulList { state, items }
     }
 
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.items.len() - 1 {
@@ -40,7 +48,7 @@ impl<T> StatefulList<T> {
         self.state.select(Some(i));
     }
 
-    fn previous(&mut self) {
+    pub fn previous(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -54,7 +62,7 @@ impl<T> StatefulList<T> {
         self.state.select(Some(i));
     }
 
-    fn unselect(&mut self) {
+    pub fn unselect(&mut self) {
         self.state.select(None);
     }
 }
@@ -66,33 +74,52 @@ pub struct App<T> {
     pub should_quit: bool,
 }
 
-impl<T> App<T> {
+pub struct AppItem(OsString, Pointer<NodeData>);
+
+impl NameGettable for AppItem {
+    fn get_name(&self) -> &str {
+        self.0.as_os_str().to_str().expect("")
+    }
+}
+
+impl ItemMarkable for AppItem {
+    fn marked(&self) -> bool {
+        self.1.marked()
+    }
+}
+
+impl App<AppItem> {
     /// Constructs a new instance of [`App`].
-    pub fn new(items: Vec<T>) -> Self {
-        App {
+    pub fn new(root: Pointer<NodeData>) -> Result<Self, TreeError> {
+        let items = root
+            .borrow()
+            .children
+            .as_ref()
+            .ok_or(TreeError::EmptyTreeError)?
+            .iter()
+            .map(|item| {
+                let key = item.0.to_owned();
+                let pointer = item.1.clone();
+                AppItem(key, pointer)
+            })
+            .collect();
+
+        let items = StatefulList::new(items);
+
+        Ok(App {
             items,
             should_quit: false,
-        }
+        })
     }
+}
 
+impl<T> App<T> {
     /// Handles the tick event of the terminal.
     pub fn tick(&self) {}
 
     /// Set should_quit to true to quit the application.
     pub fn quit(&mut self) {
         self.should_quit = true;
-    }
-
-    pub fn increment_counter(&mut self) {
-        if let Some(res) = self.counter.checked_add(1) {
-            self.counter = res;
-        }
-    }
-
-    pub fn decrement_counter(&mut self) {
-        if let Some(res) = self.counter.checked_sub(1) {
-            self.counter = res;
-        }
     }
 }
 

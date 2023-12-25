@@ -1,15 +1,19 @@
-use std::{io, panic};
-
+use crate::node::{ItemMarkable, NameGettable};
 use color_eyre::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::{io, panic};
 
 pub type CrosstermTerminal =
     ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stderr>>;
 
-use crate::{app::App, event::EventHandler, ui};
+use crate::{
+    app::{self, App},
+    event::EventHandler,
+    ui,
+};
 pub struct Tui {
     terminal: CrosstermTerminal,
     pub events: EventHandler,
@@ -51,7 +55,10 @@ impl Tui {
     ///
     /// [`Draw`]: tui::Terminal::draw
     /// [`rendering`]: crate::ui:render
-    pub fn draw(&mut self, app: &mut App) -> Result<()> {
+    pub fn draw<T>(&mut self, app: &mut App<T>) -> Result<()>
+    where
+        T: NameGettable + ItemMarkable,
+    {
         self.terminal.draw(|frame| ui::render(app, frame))?;
         Ok(())
     }

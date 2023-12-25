@@ -7,7 +7,10 @@ use anyhow::{Context, Result};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 use ratatui::{prelude::*, widgets::*};
 
@@ -32,13 +35,17 @@ fn main() -> Result<()> {
 fn setup_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {
     let mut stdout = io::stdout();
     enable_raw_mode().context("failed to enable raw mode")?;
-    execute!(stdout, EnterAlternateScreen).context("unable to enter alternate screen")?;
-    Terminal::new(CrosstermBackend::new(stdout)).context("creating terminal failed")
+    execute!(stdout, EnterAlternateScreen)
+        .context("unable to enter alternate screen")?;
+    Terminal::new(CrosstermBackend::new(stdout))
+        .context("creating terminal failed")
 }
 
 /// Restore the terminal. This is where you disable raw mode, leave the alternate screen, and show
 /// the cursor.
-fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
+fn restore_terminal(
+    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+) -> Result<()> {
     disable_raw_mode().context("failed to disable raw mode")?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)
         .context("unable to switch to main screen")?;
@@ -62,7 +69,9 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
 /// Render the application. This is where you would draw the application UI. This example just
 /// draws a greeting.
 fn render_app(frame: &mut Frame) {
-    let greeting = Paragraph::new("Hello World! (press 'q' to quit)");
+    let greeting = Paragraph::new("Hello World! (press 'q' to quit)")
+        .white()
+        .on_blue();
     frame.render_widget(greeting, frame.size());
 }
 
@@ -73,7 +82,11 @@ fn render_app(frame: &mut Frame) {
 fn should_quit() -> Result<bool> {
     if event::poll(Duration::from_millis(250)).context("event poll failed")? {
         if let Event::Key(key) = event::read().context("event read failed")? {
-            return Ok(KeyCode::Char('q') == key.code);
+            let result = match key.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => true,
+                _ => false,
+            };
+            return Ok(result);
         }
     }
     Ok(false)

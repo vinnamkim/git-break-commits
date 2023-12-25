@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
 
-pub fn update(app: &mut App, key_event: KeyEvent) {
+pub fn update<T>(app: &mut App<T>, key_event: KeyEvent) {
     match key_event.code {
         KeyCode::Esc | KeyCode::Char('q') => app.quit(),
         KeyCode::Char('c') | KeyCode::Char('C') => {
@@ -10,8 +10,8 @@ pub fn update(app: &mut App, key_event: KeyEvent) {
                 app.quit()
             }
         }
-        KeyCode::Right | KeyCode::Char('j') => app.increment_counter(),
-        KeyCode::Left | KeyCode::Char('k') => app.decrement_counter(),
+        KeyCode::Up => app.items.previous(),
+        KeyCode::Down => app.items.next(),
         _ => {}
     };
 }
