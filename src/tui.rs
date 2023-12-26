@@ -55,9 +55,7 @@ impl Tui {
     ///
     /// [`Draw`]: tui::Terminal::draw
     /// [`rendering`]: crate::ui:render
-    pub fn draw<T>(&mut self, app: &mut App<T>) -> Result<()>
-    where
-        T: NameGettable + ItemMarkable,
+    pub fn draw(&mut self, app: &mut App) -> Result<()>
     {
         self.terminal.draw(|frame| ui::render(app, frame))?;
         Ok(())

@@ -68,10 +68,10 @@ impl<T> StatefulList<T> {
 }
 
 // Application
-#[derive(Debug, Default)]
-pub struct App<T> {
-    pub items: StatefulList<T>,
+pub struct App {
+    pub items: StatefulList<AppItem>,
     pub should_quit: bool,
+    pub curr_node: Pointer<NodeData>,
 }
 
 pub struct AppItem(OsString, Pointer<NodeData>);
@@ -88,32 +88,59 @@ impl ItemMarkable for AppItem {
     }
 }
 
-impl App<AppItem> {
+fn get_item_list(
+    pointer: &Pointer<NodeData>,
+) -> Result<StatefulList<AppItem>, TreeError> {
+    let items = pointer
+        .borrow()
+        .children
+        .as_ref()
+        .ok_or(TreeError::EmptyTreeError)?
+        .iter()
+        .map(|item| {
+            let key = item.0.to_owned();
+            let pointer = item.1.clone();
+            AppItem(key, pointer)
+        })
+        .collect();
+    let items = StatefulList::new(items);
+    Ok(items)
+}
+
+impl App {
     /// Constructs a new instance of [`App`].
     pub fn new(root: Pointer<NodeData>) -> Result<Self, TreeError> {
-        let items = root
-            .borrow()
-            .children
-            .as_ref()
-            .ok_or(TreeError::EmptyTreeError)?
-            .iter()
-            .map(|item| {
-                let key = item.0.to_owned();
-                let pointer = item.1.clone();
-                AppItem(key, pointer)
-            })
-            .collect();
-
-        let items = StatefulList::new(items);
+        let items = get_item_list(&root)?;
 
         Ok(App {
             items,
             should_quit: false,
+            curr_node: root,
         })
     }
-}
 
-impl<T> App<T> {
+    pub fn goto_child(&mut self) {
+        if let Some(idx) = self.items.state.selected() {
+            let item = &self.items.items[idx];
+            let next_node = item.1.clone();
+
+            if let Some(items) = get_item_list(&next_node).ok() {
+                self.items = items;
+                self.curr_node = next_node;
+            }
+        }
+    }
+
+    pub fn goto_parent(&mut self) {
+        let parent = self.curr_node.borrow().parent.clone();
+        if let Some(next_node) = parent {
+            if let Some(items) = get_item_list(&next_node).ok() {
+                self.items = items;
+                self.curr_node = next_node;
+            }
+        }
+    }
+
     /// Handles the tick event of the terminal.
     pub fn tick(&self) {}
 

@@ -2,9 +2,7 @@ use crate::app::App;
 use crate::node::{ItemMarkable, NameGettable};
 use ratatui::{prelude::*, widgets::*};
 
-pub fn render<T>(app: &mut App<T>, f: &mut Frame)
-where
-    T: NameGettable + ItemMarkable,
+pub fn render(app: &mut App, f: &mut Frame)
 {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
