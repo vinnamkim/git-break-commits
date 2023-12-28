@@ -1,3 +1,4 @@
+use std::cmp;
 use std::ffi::OsString;
 
 use ratatui::widgets::ListState;
@@ -5,7 +6,7 @@ use ratatui::widgets::ListState;
 use crate::node::{
     ItemMarkable, NameGettable, Node, NodeData, NodeItem, Pointer,
 };
-use crate::tree::{Tree, TreeError};
+use crate::tree::{Mark, NodeId, Tree, TreeError, TreePtr};
 
 pub enum Action {
     Tick,
@@ -69,74 +70,99 @@ impl<T> StatefulList<T> {
 
 // Application
 pub struct App {
+    pub tree: TreePtr,
     pub items: StatefulList<AppItem>,
     pub should_quit: bool,
-    pub curr_node: Pointer<NodeData>,
+    pub curr_node_id: NodeId,
 }
 
-pub struct AppItem(OsString, Pointer<NodeData>);
+pub struct AppItem {
+    pub key: OsString,
+    node_id: NodeId,
+    tree: TreePtr,
+}
 
-impl NameGettable for AppItem {
-    fn get_name(&self) -> &str {
-        self.0.as_os_str().to_str().expect("")
+impl AppItem {
+    pub fn is_directory(&self) -> bool {
+        !self.tree.borrow().get_node(self.node_id).is_leaf_node()
+    }
+
+    pub fn get_mark(&self) -> Mark {
+        self.tree.borrow().get_node(self.node_id).mark
     }
 }
 
-impl ItemMarkable for AppItem {
-    fn marked(&self) -> bool {
-        self.1.marked()
-    }
-}
-
-fn get_item_list(
-    pointer: &Pointer<NodeData>,
-) -> Result<StatefulList<AppItem>, TreeError> {
-    let items = pointer
+fn get_item_list(tree: TreePtr, node_id: NodeId) -> StatefulList<AppItem> {
+    let mut items: Vec<AppItem> = tree
         .borrow()
+        .get_node(node_id)
         .children
-        .as_ref()
-        .ok_or(TreeError::EmptyTreeError)?
         .iter()
-        .map(|item| {
-            let key = item.0.to_owned();
-            let pointer = item.1.clone();
-            AppItem(key, pointer)
+        .map(|item| AppItem {
+            key: item.0.to_owned(),
+            node_id: *item.1,
+            tree: tree.clone(),
         })
         .collect();
-    let items = StatefulList::new(items);
-    Ok(items)
+
+    items.sort_by(|a, b| {
+        if a.is_directory() == b.is_directory() {
+            a.key.cmp(&b.key)
+        } else if a.is_directory() {
+            cmp::Ordering::Less
+        } else {
+            cmp::Ordering::Greater
+        }
+    });
+
+    StatefulList::new(items)
 }
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(root: Pointer<NodeData>) -> Result<Self, TreeError> {
-        let items = get_item_list(&root)?;
+    pub fn new(tree: TreePtr) -> Result<Self, TreeError> {
+        let curr_node_id = tree.borrow().root_id();
+        let items = get_item_list(tree.clone(), curr_node_id);
 
-        Ok(App {
+        Ok(Self {
+            tree,
             items,
             should_quit: false,
-            curr_node: root,
+            curr_node_id,
         })
     }
 
     pub fn goto_child(&mut self) {
-        if let Some(idx) = self.items.state.selected() {
-            let item = &self.items.items[idx];
-            let next_node = item.1.clone();
+        if let Some(selected_item_idx) = self.items.state.selected() {
+            let next_node_id = self.items.items[selected_item_idx].node_id;
 
-            if let Some(items) = get_item_list(&next_node).ok() {
-                self.items = items;
-                self.curr_node = next_node;
+            if !self.tree.borrow().get_node(next_node_id).is_leaf_node() {
+                self.items = get_item_list(self.tree.clone(), next_node_id);
+                self.curr_node_id = next_node_id;
             }
         }
     }
 
     pub fn goto_parent(&mut self) {
-        let parent = self.curr_node.borrow().parent.clone();
-        if let Some(next_node) = parent {
-            if let Some(items) = get_item_list(&next_node).ok() {
-                self.items = items;
-                self.curr_node = next_node;
+        if let Some(next_node_id) =
+            self.tree.borrow().get_node(self.curr_node_id).parent
+        {
+            self.items = get_item_list(self.tree.clone(), next_node_id);
+            self.curr_node_id = next_node_id;
+        }
+    }
+
+    pub fn select(&mut self) {
+        if let Some(selected_item_idx) = self.items.state.selected() {
+            let node_id = self.items.items[selected_item_idx].node_id;
+            let node_mark = self.tree.borrow().get_node(node_id).mark;
+            match node_mark {
+                Mark::Unselected | Mark::PartiallySelected => {
+                    self.tree.borrow_mut().mark(node_id, Mark::Selected);
+                }
+                Mark::Selected => {
+                    self.tree.borrow_mut().mark(node_id, Mark::Unselected);
+                }
             }
         }
     }

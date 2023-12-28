@@ -18,7 +18,7 @@ pub mod update;
 pub mod node;
 pub mod tree;
 
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, rc::Rc};
 
 use app::App;
 use color_eyre::Result;
@@ -32,20 +32,31 @@ use update::update;
 
 // ANCHOR: main
 fn main() -> Result<()> {
-    let tree = Tree::new();
+    let mut tree = Tree::new_ptr();
 
-    let x = NodeData::from_str("./a/b/c/file.txt").expect("");
-    let y = NodeData::from_str("./a/b/file.txt").expect("");
-    let z = NodeData::from_str("./a/c/file.txt").expect("");
-    let z2 = NodeData::from_str("./a/b/c/file2.txt").expect("");
+    let y = PathBuf::from_str("./a/b/file.txt").expect("");
+    let x = PathBuf::from_str("./a/b/c/file.txt").expect("");
+    let z = PathBuf::from_str("./a/c/file.txt").expect("");
+    let z2 = PathBuf::from_str("a/b/c/file2.txt").expect("");
 
-    tree.add(x);
-    tree.add(y);
-    tree.add(z);
-    tree.add(z2);
+    tree.borrow_mut().add(x);
+    tree.borrow_mut().add(y);
+    tree.borrow_mut().add(z);
+    tree.borrow_mut().add(z2);
+
+    // .
+    // └── a
+    //     ├── b
+    //     │   ├── c
+    //     │   │   ├── file.txt
+    //     │   │   └── file2.txt
+    //     │   └── file.txt
+    //     └── c
+    //         └── file.txt
+    // # of nodes => 8 + 1 (including root)
 
     // Create an application.
-    let mut app = App::new(tree.get_root()).expect("true");
+    let mut app = App::new(tree).expect("true");
 
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(std::io::stderr());

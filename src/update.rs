@@ -14,6 +14,7 @@ pub fn update(app: &mut App, key_event: KeyEvent) {
         KeyCode::Down => app.items.next(),
         KeyCode::Right => app.goto_child(),
         KeyCode::Left => app.goto_parent(),
+        KeyCode::Char(' ') => app.select(),
         _ => {}
     };
 }
