@@ -43,7 +43,7 @@ fn update_commit_message_editor(app: &mut App, key_event: KeyEvent) {
         || key_event.code == KeyCode::Char('W'))
         && key_event.modifiers.contains(KeyModifiers::CONTROL)
     {
-        app.save_editor();
+        app.save_commit();
         return;
     }
 

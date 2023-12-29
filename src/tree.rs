@@ -60,6 +60,7 @@ impl Node {
 #[derive(Debug)]
 pub struct Tree {
     nodes: Vec<Node>,
+    leaf_node_ids: Vec<NodeId>,
     pub num_leaf_node: usize,
     pub num_selected: usize,
 }
@@ -70,6 +71,7 @@ impl Default for Tree {
     fn default() -> Self {
         Self {
             nodes: vec![Node::new_root()],
+            leaf_node_ids: vec![],
             num_leaf_node: 0,
             num_selected: 0,
         }
@@ -122,6 +124,7 @@ impl Tree {
 
                     if is_leaf_node {
                         self.num_leaf_node += 1;
+                        self.leaf_node_ids.push(child_id);
                     }
 
                     curr_id = child_id;
@@ -269,6 +272,23 @@ impl Tree {
         path_buf
     }
 
+    pub fn get_selected_file_paths(&self) -> Vec<PathBuf> {
+        let selected: Vec<PathBuf> = self
+            .leaf_node_ids
+            .iter()
+            .filter_map(|node_id| {
+                let node = self.get_node(*node_id);
+                if let Mark::Selected = node.mark {
+                    node.fullpath.clone()
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        selected
+    }
+
     pub fn size(&self) -> usize {
         self.nodes.len()
     }
@@ -355,7 +375,11 @@ mod tests {
 
         assert_eq!(tree.borrow().num_selected, 2);
 
-        dbg!(&tree);
+        let selected = tree.borrow().get_selected_file_paths();
+
+        assert_eq!(selected.len(), 2);
+
+        dbg!(selected);
 
         Ok(())
     }

@@ -196,7 +196,7 @@ impl<'a> App<'a> {
         self.current_screen = CurrentScreen::FileNavigator;
     }
 
-    pub fn save_editor(&mut self) {
+    pub fn save_commit(&mut self) {
         self.current_screen = CurrentScreen::FileNavigator;
     }
 
