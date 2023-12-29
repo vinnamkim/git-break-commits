@@ -1,5 +1,4 @@
 mod tree;
-mod node;
 
 use std::process::{Command, Output};
 use std::{io, string};

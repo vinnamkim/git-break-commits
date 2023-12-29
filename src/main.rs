@@ -1,5 +1,3 @@
-// ANCHOR: imports_main
-// ANCHOR: declare_mods
 /// Application.
 pub mod app;
 
@@ -15,15 +13,14 @@ pub mod tui;
 /// Application updater.
 pub mod update;
 
-pub mod node;
 pub mod tree;
 
-use std::{path::PathBuf, str::FromStr, rc::Rc};
+use std::{path::PathBuf, str::FromStr};
 
 use app::App;
 use color_eyre::Result;
 use event::{Event, EventHandler};
-use node::NodeData;
+
 use ratatui::{backend::CrosstermBackend, Terminal};
 use tree::Tree;
 use tui::Tui;
@@ -82,4 +79,3 @@ fn main() -> Result<()> {
     tui.exit()?;
     Ok(())
 }
-// ANCHOR_END: main

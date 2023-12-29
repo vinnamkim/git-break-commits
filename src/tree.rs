@@ -1,8 +1,9 @@
+use core::num;
 use std::collections::HashMap;
 
 use path_clean::PathClean;
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{self, PathBuf};
 use std::{cell::RefCell, rc::Rc};
 use thiserror::Error;
 
@@ -59,6 +60,8 @@ impl Node {
 #[derive(Debug)]
 pub struct Tree {
     nodes: Vec<Node>,
+    pub num_leaf_node: usize,
+    pub num_selected: usize,
 }
 
 pub type TreePtr = Rc<RefCell<Tree>>;
@@ -67,6 +70,8 @@ impl Default for Tree {
     fn default() -> Self {
         Self {
             nodes: vec![Node::new_root()],
+            num_leaf_node: 0,
+            num_selected: 0,
         }
     }
 }
@@ -114,6 +119,11 @@ impl Tree {
                     self.nodes[curr_id]
                         .children
                         .insert(key.to_owned(), child_id);
+
+                    if is_leaf_node {
+                        self.num_leaf_node += 1;
+                    }
+
                     curr_id = child_id;
                 }
             }
@@ -184,6 +194,7 @@ impl Tree {
 
         if is_first_call {
             self.correct_parents_mark(node_id);
+            self.update_num_selected();
         }
     }
 
@@ -193,6 +204,28 @@ impl Tree {
                 self.compute_mark_from_children(parent_id);
             self.correct_parents_mark(parent_id)
         }
+    }
+
+    fn update_num_selected(&mut self) {
+        let mut num_selected = 0;
+        let mut stack = vec![self.root_id()];
+
+        while let Some(node_id) = stack.pop() {
+            let node = self.get_node(node_id);
+
+            if node.mark == Mark::Unselected {
+                continue;
+            } else {
+                for (_, node_id) in &node.children {
+                    stack.push(*node_id);
+                }
+            }
+
+            if node.is_leaf_node() && node.mark == Mark::Selected {
+                num_selected += 1;
+            }
+        }
+        self.num_selected = num_selected
     }
 
     fn compute_mark_from_children(&self, node_id: NodeId) -> Mark {
@@ -215,6 +248,25 @@ impl Tree {
         } else {
             return Mark::PartiallySelected;
         }
+    }
+
+    pub fn get_path_buf(&self, node_id: NodeId) -> PathBuf {
+        // let mut node_id = node_id;
+        let mut stack = vec![];
+
+        let mut curr_id = Some(node_id);
+
+        while let Some(node_id) = curr_id {
+            let node = self.get_node(node_id);
+            if let Some(key) = node.key.clone() {
+                stack.push(key);
+            }
+            curr_id = node.parent;
+        }
+
+        let path_buf: PathBuf = stack.iter().rev().collect();
+
+        path_buf
     }
 
     pub fn size(&self) -> usize {
@@ -269,6 +321,7 @@ mod tests {
         dbg!(&tree);
 
         assert_eq!(tree.borrow().size(), 8 + 1);
+        assert_eq!(tree.borrow().num_leaf_node, 4);
 
         Ok(())
     }
@@ -299,6 +352,8 @@ mod tests {
             }
         }
         check_parent(node_id, &tree);
+
+        assert_eq!(tree.borrow().num_selected, 2);
 
         dbg!(&tree);
 
