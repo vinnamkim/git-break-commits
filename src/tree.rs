@@ -289,6 +289,21 @@ impl Tree {
         selected
     }
 
+    pub fn get_remaining_tree(&self) -> Result<TreePtr, TreeError> {
+        let new_tree = Tree::new_ptr();
+
+        for node_id in &self.leaf_node_ids {
+            let node = self.get_node(*node_id);
+            if node.mark == Mark::Unselected {
+                if let Some(path) = node.fullpath.clone() {
+                    new_tree.borrow_mut().add(path)?;
+                }
+            }
+        }
+
+        Ok(new_tree)
+    }
+
     pub fn size(&self) -> usize {
         self.nodes.len()
     }
@@ -378,6 +393,11 @@ mod tests {
         let selected = tree.borrow().get_selected_file_paths();
 
         assert_eq!(selected.len(), 2);
+
+        let remaining = tree.borrow().get_remaining_tree().expect("");
+
+        assert_eq!(remaining.borrow().num_leaf_node, 2);
+        assert_eq!(remaining.borrow().size(), 8 + 1 - 3);
 
         dbg!(selected);
 

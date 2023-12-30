@@ -1,8 +1,14 @@
 mod tree;
 
+use rand::{distributions::Alphanumeric, Rng};
+
+use std::io;
+use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Output};
-use std::{io, string};
 use thiserror::Error;
+
+use tempfile::NamedTempFile;
 
 #[derive(Error, Debug)]
 pub enum GitCommandError {
@@ -11,63 +17,195 @@ pub enum GitCommandError {
     #[error("Cannot change to UTF8 format")]
     UTF8Error { value: std::str::Utf8Error },
     #[error("status: {0:?}, stderr: {1:?}", value.status, value.stderr)]
-    Error { value: Output },
+    GitError { value: Output },
+    #[error("Invalid function call")]
+    InvalidFunctionCallError,
+    #[error("Empty list (level: {0:?}", level)]
+    EmptyListError { level: u8 },
 }
 
 impl From<std::io::Error> for GitCommandError {
     fn from(value: std::io::Error) -> Self {
-        GitCommandError::IOError { value: value }
+        GitCommandError::IOError { value }
     }
 }
 
 impl From<std::str::Utf8Error> for GitCommandError {
     fn from(value: std::str::Utf8Error) -> Self {
-        GitCommandError::UTF8Error { value: value }
+        GitCommandError::UTF8Error { value }
     }
 }
 
-#[derive(Debug)]
-struct SelectablePathBuf {
-    selected: bool,
-    path_buf: std::path::PathBuf,
+pub struct GitCommitCandidate {
+    pub msg: String,
+    pub file_paths: Vec<PathBuf>,
 }
 
-struct GitSplitter {
+struct GitHelper {
     level: u8,
+    curr_branch_name: String,
+    temp_branch_name: Option<String>,
 }
 
-impl GitSplitter {
-    pub fn list(self) -> Result<Vec<SelectablePathBuf>, GitCommandError> {
+impl GitHelper {
+    pub fn new(level: u8) -> Result<GitHelper, GitCommandError> {
+        let git_helper = GitHelper {
+            level,
+            curr_branch_name: GitHelper::get_current_branch_name()?,
+            temp_branch_name: None,
+        };
+
+        Ok(git_helper)
+    }
+
+    fn get_current_branch_name() -> Result<String, GitCommandError> {
+        let output = Command::new("git")
+            .args(["branch", "--show-current"])
+            .output()?;
+
+        if !output.status.success() {
+            return Err(GitCommandError::GitError { value: output });
+        }
+
+        let branch_name = std::str::from_utf8(output.stdout.as_slice())?
+            .trim_end_matches("\r\n")
+            .trim_end_matches("\n")
+            .to_owned();
+        Ok(branch_name)
+    }
+
+    pub fn list(&self) -> Result<Vec<PathBuf>, GitCommandError> {
         let start = format!("HEAD~{}", self.level);
         let output = Command::new("git")
             .args(["diff", "--name-only", start.as_str(), "HEAD"])
-            .output();
+            .output()?;
 
-        match output {
-            Ok(out) => {
-                if out.status.success() {
-                    let diff_list: Vec<SelectablePathBuf> =
-                        std::str::from_utf8(out.stdout.as_ref())?
-                            .split("\n")
-                            .map(|line| {
-                                std::ffi::OsStr::new(
-                                    line.strip_suffix("\r").unwrap_or(line),
-                                )
-                            })
-                            .filter(|f| !f.is_empty())
-                            .map(|line| SelectablePathBuf {
-                                selected: false,
-                                path_buf: std::path::Path::new(line).to_owned(),
-                            })
-                            .collect();
-
-                    return Ok(diff_list);
-                } else {
-                    return Err(GitCommandError::Error { value: out });
-                }
-            }
-            Err(out) => Err(GitCommandError::IOError { value: out }),
+        if !output.status.success() {
+            return Err(GitCommandError::GitError { value: output });
         }
+
+        let diff_list: Vec<PathBuf> =
+            std::str::from_utf8(output.stdout.as_ref())?
+                .split("\n")
+                .map(|line| {
+                    std::ffi::OsStr::new(
+                        line.strip_suffix("\r").unwrap_or(line),
+                    )
+                })
+                .filter(|f| !f.is_empty())
+                .map(|line| std::path::Path::new(line).to_owned())
+                .collect();
+
+        if diff_list.len() != 0 {
+            Ok(diff_list)
+        } else {
+            Err(GitCommandError::EmptyListError { level: self.level })
+        }
+    }
+
+    pub fn checkout_to_temp_branch(
+        &mut self,
+    ) -> Result<Output, GitCommandError> {
+        let rand_key: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(16)
+            .map(char::from)
+            .collect();
+
+        let branch_name = format!("tmp-branch/{}", rand_key);
+        let output = Command::new("git")
+            .args(["checkout", "-b", branch_name.as_str()])
+            .output()?;
+
+        if !output.status.success() {
+            return Err(GitCommandError::GitError { value: output });
+        }
+
+        self.temp_branch_name = Some(branch_name);
+        Ok(output)
+    }
+
+    pub fn restore_branch(&mut self) -> Result<Output, GitCommandError> {
+        if let Some(name) = &self.temp_branch_name {
+            let output = Command::new("git")
+                .args(["checkout", "-B", self.curr_branch_name.as_str()])
+                .output()?;
+
+            if !output.status.success() {
+                return Err(GitCommandError::GitError { value: output });
+            }
+
+            let output = Command::new("git")
+                .args(["branch", "-d", name.as_str()])
+                .output()?;
+
+            if !output.status.success() {
+                return Err(GitCommandError::GitError { value: output });
+            }
+
+            Ok(output)
+        } else {
+            Err(GitCommandError::InvalidFunctionCallError)
+        }
+    }
+
+    pub fn reset(&self) -> Result<Output, GitCommandError> {
+        let start = format!("HEAD~{}", self.level);
+        let output = Command::new("git")
+            .args(["reset", "--soft", start.as_str()])
+            .output()?;
+
+        if !output.status.success() {
+            return Err(GitCommandError::GitError { value: output });
+        }
+
+        Ok(output)
+    }
+
+    pub fn commit(
+        &self,
+        commits: &Vec<GitCommitCandidate>,
+    ) -> Result<Vec<Output>, GitCommandError> {
+        let mut outputs = vec![];
+
+        for commit in commits {
+            let mut file = NamedTempFile::new()?;
+
+            let path: Vec<&str> = commit
+                .file_paths
+                .iter()
+                .map(|item| {
+                    item.as_os_str()
+                        .to_str()
+                        .expect("Cannot change the file path to str")
+                })
+                .collect();
+            let path = path.join("\n");
+
+            file.write(path.as_bytes())?;
+            let spec_filepath = file
+                .path()
+                .to_str()
+                .expect("Cannot change the named temporary file path to str");
+
+            let msg = &commit.msg;
+            let args = vec![
+                "commit",
+                "-m",
+                msg.as_str(),
+                "--pathspec-from-file",
+                spec_filepath,
+            ];
+
+            let output = Command::new("git").args(args).output()?;
+
+            if !output.status.success() {
+                return Err(GitCommandError::GitError { value: output });
+            }
+
+            outputs.push(output);
+        }
+        Ok(outputs)
     }
 }
 
@@ -84,15 +222,38 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn my_test() -> Result<(), GitCommandError> {
+    fn test() {
+        let result = test_impl();
+        if result.is_err() {
+            dbg!(&result);
+        }
+        assert!(result.is_ok());
+    }
+
+    fn test_impl() -> Result<(), GitCommandError> {
         let temp_dir = tempdir()?;
         env::set_current_dir(&temp_dir)?;
+        dbg!(&temp_dir);
 
         let log = prepare_git_project()?;
         println!("{:?}", log);
+        let branch_name = GitHelper::get_current_branch_name()?;
 
-        let splitter = GitSplitter { level: 3 };
-        println!("{:?}", splitter.list()?);
+        let mut helper = GitHelper::new(3)?;
+        let file_paths = helper.list()?;
+        println!("{:?}", file_paths);
+        println!("{:?}", helper.checkout_to_temp_branch()?);
+        println!("{:?}", helper.reset()?);
+        let msg = "test".to_owned();
+        let commit_cands = vec![GitCommitCandidate { msg, file_paths }];
+        let outputs = helper.commit(&commit_cands)?;
+        assert_eq!(outputs.len(), commit_cands.len());
+        for output in outputs {
+            println!("{:?}", output);
+        }
+        let output = helper.restore_branch()?;
+
+        assert_eq!(branch_name, GitHelper::get_current_branch_name()?);
 
         Ok(())
     }

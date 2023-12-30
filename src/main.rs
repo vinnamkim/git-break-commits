@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     // # of nodes => 8 + 1 (including root)
 
     // Create an application.
-    let mut app = App::new(tree).expect("true");
+    let mut app = App::new(tree);
 
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(std::io::stderr());

@@ -203,6 +203,7 @@ impl<'a> App<'a> {
             .textarea
             .lines()
             .join("\n")
+            .trim_end_matches("\r\n")
             .trim_end_matches("\n")
             .trim_end_matches(" ")
             .to_owned();
