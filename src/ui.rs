@@ -60,10 +60,11 @@ pub fn render_file_navigator(app: &mut App, f: &mut Frame) {
     // We can now render the item list
     f.render_stateful_widget(items, chunks[0], &mut app.items.state);
 
+    let commit_no = app.commits.len() + 1;
     let (num_total, num_selected) = app.get_stats();
     let text = format!(
-        " # of total files: {}, # of selected files: {}",
-        num_total, num_selected
+        "[Commit {}] # of total files: {}, # of selected files: {}",
+        commit_no, num_total, num_selected
     );
 
     let bottom_widget =
