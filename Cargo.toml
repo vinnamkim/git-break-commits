@@ -1,5 +1,6 @@
 [package]
 name = "git-split-by-dir"
+authors = ["Vinnam Kim <vinnam.kim@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 
@@ -16,12 +17,5 @@ tui-textarea = {version = "0.4.0", features = ["crossterm"]}
 ratatui = "0.25.0"
 crossterm = "0.27.0"
 rand = "0.8.5"
-
-[[example]]
-name = "crossterm"
-
-[[example]]
-name = "hello_world"
-
-[[example]]
-name = "list"
+clap = { version = "4.4.12", features = ["derive"] }
+eyre = "0.6.11"

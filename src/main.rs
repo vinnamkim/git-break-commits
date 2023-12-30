@@ -15,45 +15,50 @@ pub mod update;
 
 pub mod tree;
 
-use std::{path::PathBuf, str::FromStr};
+pub mod git_helper;
+
+use git_helper::GitHelper;
 
 use app::App;
 use color_eyre::Result;
 use event::{Event, EventHandler};
+use eyre::eyre;
 
 use ratatui::{backend::CrosstermBackend, Terminal};
-use tree::Tree;
 use tui::Tui;
 use update::update;
-// ANCHOR_END: imports_main
 
-// ANCHOR: main
+use clap::Parser;
+
+const ABOUT: &str = r#"
+Split Git commits interactively.
+
+This is an interactive CLI tool that executes the following Git commands to reconstruct existing commits:
+
+$ git reset --soft HEAD~{depth}
+
+The following commands are executed repeatedly until all the reset files are committed:
+
+$ git add {some-selected-files}
+$ git commit -m "{msg}"
+"#;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about = ABOUT)]
+struct Args {
+    /// Depth of commits to split
+    depth: u8,
+}
+
 fn main() -> Result<()> {
-    let mut tree = Tree::new_ptr();
+    let args = Args::parse();
 
-    let y = PathBuf::from_str("./a/b/file.txt").expect("");
-    let x = PathBuf::from_str("./a/b/c/file.txt").expect("");
-    let z = PathBuf::from_str("./a/c/file.txt").expect("");
-    let z2 = PathBuf::from_str("a/b/c/file2.txt").expect("");
+    let mut git_helper = GitHelper::new(args.depth)?;
 
-    tree.borrow_mut().add(x);
-    tree.borrow_mut().add(y);
-    tree.borrow_mut().add(z);
-    tree.borrow_mut().add(z2);
-
-    // .
-    // └── a
-    //     ├── b
-    //     │   ├── c
-    //     │   │   ├── file.txt
-    //     │   │   └── file2.txt
-    //     │   └── file.txt
-    //     └── c
-    //         └── file.txt
-    // # of nodes => 8 + 1 (including root)
+    let file_paths = git_helper.list()?;
 
     // Create an application.
-    let mut app = App::new(tree);
+    let mut app = App::new(file_paths)?;
 
     // Initialize the terminal user interface.
     let backend = CrosstermBackend::new(std::io::stderr());
@@ -77,5 +82,16 @@ fn main() -> Result<()> {
 
     // Exit the user interface.
     tui.exit()?;
-    Ok(())
+
+    // Apply Git changes
+    if app.tree.borrow().num_leaf_node == 0 {
+        git_helper.checkout_to_temp_branch()?;
+        git_helper.reset()?;
+        git_helper.commit(&app.commits)?;
+        git_helper.restore_branch()?;
+
+        Ok(())
+    } else {
+        Err(eyre!("Nothing changed"))
+    }
 }

@@ -79,6 +79,19 @@ impl Default for Tree {
 }
 
 impl Tree {
+    pub fn new_from_paths<I>(file_paths: I) -> Result<TreePtr, TreeError>
+    where
+        I: IntoIterator<Item = PathBuf>,
+    {
+        let tree = Rc::new(RefCell::new(Tree::default()));
+
+        for file_path in file_paths {
+            tree.borrow_mut().add(file_path)?;
+        }
+
+        Ok(tree)
+    }
+
     pub fn new_ptr() -> TreePtr {
         Rc::new(RefCell::new(Tree::default()))
     }
@@ -334,17 +347,13 @@ mod tests {
         //         └── file.txt
         // # of nodes => 8 + 1 (including root)
 
-        let tree = Tree::new_ptr();
-
-        let x = PathBuf::from_str("./a/b/c/file.txt").expect("");
-        let y = PathBuf::from_str("./a/b/file.txt").expect("");
-        let z = PathBuf::from_str("./a/c/file.txt").expect("");
-        let z2 = PathBuf::from_str("a/b/c/file2.txt").expect("");
-
-        tree.borrow_mut().add(x);
-        tree.borrow_mut().add(y);
-        tree.borrow_mut().add(z);
-        tree.borrow_mut().add(z2);
+        let file_paths = vec![
+            PathBuf::from_str("./a/b/c/file.txt").expect(""),
+            PathBuf::from_str("./a/b/file.txt").expect(""),
+            PathBuf::from_str("./a/c/file.txt").expect(""),
+            PathBuf::from_str("a/b/c/file2.txt").expect(""),
+        ];
+        let tree = Tree::new_from_paths(file_paths).expect("");
 
         tree
     }

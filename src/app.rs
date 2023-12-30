@@ -1,11 +1,11 @@
 use std::ffi::OsString;
 use std::{cmp, path::PathBuf};
 
-use git_split_by_dir::GitCommitCandidate;
 use ratatui::widgets::ListState;
 use tui_textarea::TextArea;
 
-use crate::tree::{Mark, NodeId, TreeError, TreePtr};
+use crate::git_helper::GitCommitCandidate;
+use crate::tree::{Mark, NodeId, Tree, TreeError, TreePtr};
 
 #[derive(Clone)]
 pub enum CurrentScreen {
@@ -121,11 +121,12 @@ impl<'a> App<'a> {
     }
 
     /// Constructs a new instance of [`App`].
-    pub fn new(tree: TreePtr) -> Self {
+    pub fn new(file_paths: Vec<PathBuf>) -> Result<Self, TreeError> {
+        let tree = Tree::new_from_paths(file_paths)?;
         let curr_node_id = tree.borrow().root_id();
         let items = App::get_item_list(&tree, curr_node_id);
 
-        Self {
+        Ok(Self {
             tree,
             items,
             should_quit: false,
@@ -133,7 +134,7 @@ impl<'a> App<'a> {
             current_screen: CurrentScreen::FileNavigator,
             textarea: TextArea::default(),
             commits: vec![],
-        }
+        })
     }
 
     pub fn goto_child(&mut self) {
@@ -229,6 +230,7 @@ impl<'a> App<'a> {
         self.items = App::get_item_list(&new_tree, curr_node_id);
         self.tree = new_tree;
         self.curr_node_id = curr_node_id;
+        self.textarea = TextArea::default();
 
         self.current_screen = CurrentScreen::FileNavigator;
 
