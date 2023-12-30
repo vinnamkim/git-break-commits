@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::{cmp, path::PathBuf};
 
+use git_split_by_dir::GitCommitCandidate;
 use ratatui::widgets::ListState;
 use tui_textarea::TextArea;
 
@@ -89,10 +90,11 @@ pub struct App<'a> {
     pub curr_node_id: NodeId,
     pub current_screen: CurrentScreen,
     pub textarea: TextArea<'a>,
+    pub commits: Vec<GitCommitCandidate>,
 }
 
 impl<'a> App<'a> {
-    fn get_item_list(tree: TreePtr, node_id: NodeId) -> StatefulList<AppItem> {
+    fn get_item_list(tree: &TreePtr, node_id: NodeId) -> StatefulList<AppItem> {
         let mut items: Vec<AppItem> = tree
             .borrow()
             .get_node(node_id)
@@ -119,18 +121,19 @@ impl<'a> App<'a> {
     }
 
     /// Constructs a new instance of [`App`].
-    pub fn new(tree: TreePtr) -> Result<Self, TreeError> {
+    pub fn new(tree: TreePtr) -> Self {
         let curr_node_id = tree.borrow().root_id();
-        let items = App::get_item_list(tree.clone(), curr_node_id);
+        let items = App::get_item_list(&tree, curr_node_id);
 
-        Ok(Self {
+        Self {
             tree,
             items,
             should_quit: false,
             curr_node_id,
             current_screen: CurrentScreen::FileNavigator,
             textarea: TextArea::default(),
-        })
+            commits: vec![],
+        }
     }
 
     pub fn goto_child(&mut self) {
@@ -138,8 +141,7 @@ impl<'a> App<'a> {
             let next_node_id = self.items.items[selected_item_idx].node_id;
 
             if !self.tree.borrow().get_node(next_node_id).is_leaf_node() {
-                self.items =
-                    App::get_item_list(self.tree.clone(), next_node_id);
+                self.items = App::get_item_list(&self.tree, next_node_id);
                 self.curr_node_id = next_node_id;
             }
         }
@@ -149,7 +151,7 @@ impl<'a> App<'a> {
         if let Some(next_node_id) =
             self.tree.borrow().get_node(self.curr_node_id).parent
         {
-            self.items = App::get_item_list(self.tree.clone(), next_node_id);
+            self.items = App::get_item_list(&self.tree, next_node_id);
             self.curr_node_id = next_node_id;
         }
     }
@@ -196,8 +198,44 @@ impl<'a> App<'a> {
         self.current_screen = CurrentScreen::FileNavigator;
     }
 
-    pub fn save_commit(&mut self) {
+    pub fn save_commit(&mut self) -> Result<(), TreeError> {
+        let msg = self
+            .textarea
+            .lines()
+            .join("\n")
+            .trim_end_matches("\n")
+            .trim_end_matches(" ")
+            .to_owned();
+
+        if msg.is_empty() {
+            let msg = "Cannot commit with the empty commit message!";
+            self.current_screen = CurrentScreen::ErrorMessagePopUp(
+                msg,
+                Box::new(self.current_screen.clone()),
+            );
+            return Ok(());
+        }
+
+        let old_tree = self.tree.clone();
+        let new_tree = old_tree.borrow().get_remaining_tree()?;
+
+        let file_paths = old_tree.borrow().get_selected_file_paths();
+
+        self.commits.push(GitCommitCandidate { msg, file_paths });
+
+        let curr_node_id = self.tree.borrow().root_id();
+
+        self.items = App::get_item_list(&new_tree, curr_node_id);
+        self.tree = new_tree;
+        self.curr_node_id = curr_node_id;
+
         self.current_screen = CurrentScreen::FileNavigator;
+
+        if self.tree.borrow().num_leaf_node == 0 {
+            self.should_quit = true;
+        }
+
+        Ok(())
     }
 
     pub fn close_popup(&mut self) {
@@ -213,21 +251,3 @@ impl<'a> App<'a> {
         self.should_quit = true;
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     #[test]
-//     fn test_app_increment_counter() {
-//         let mut app = App::default();
-//         app.increment_counter();
-//         assert_eq!(app.counter, 1);
-//     }
-
-//     #[test]
-//     fn test_app_decrement_counter() {
-//         let mut app = App::default();
-//         app.decrement_counter();
-//         assert_eq!(app.counter, 0);
-//     }
-// }
