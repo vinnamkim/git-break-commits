@@ -1,9 +1,8 @@
-use core::num;
 use std::collections::HashMap;
 
 use path_clean::PathClean;
 use std::ffi::OsString;
-use std::path::{self, PathBuf};
+use std::path::PathBuf;
 use std::{cell::RefCell, rc::Rc};
 use thiserror::Error;
 

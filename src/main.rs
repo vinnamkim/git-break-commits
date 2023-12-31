@@ -33,7 +33,7 @@ use clap::Parser;
 const ABOUT: &str = r#"
 Split Git commits interactively.
 
-This is an interactive CLI tool that executes the following Git commands to reconstruct existing commits:
+This is an interactive CLI tool that executes the following Git commands to break and reconstruct your existing top commits:
 
 $ git reset --soft HEAD~{depth}
 

@@ -1,8 +1,11 @@
 [package]
-name = "git-split-by-dir"
+name = "git-break-commits"
 authors = ["Vinnam Kim <vinnam.kim@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
+keywords = ["cli", "git"]
+categories = ["command-line-utilities"]
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
