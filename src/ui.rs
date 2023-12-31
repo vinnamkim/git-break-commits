@@ -9,7 +9,7 @@ pub fn render(app: &mut App, f: &mut Frame) {
             render_commit_message_editor(app, f)
         }
         CurrentScreen::ErrorMessagePopUp(msg, _) => {
-            render_error_message_pop_up(app, f, msg)
+            render_error_message_pop_up(f, msg)
         }
     }
 }
@@ -95,7 +95,7 @@ pub fn render_commit_message_editor(app: &mut App, f: &mut Frame) {
     f.render_widget(bottom_widget, chunks[1]);
 }
 
-pub fn render_error_message_pop_up(app: &mut App, f: &mut Frame, msg: &str) {
+pub fn render_error_message_pop_up(f: &mut Frame, msg: &str) {
     let text = msg;
 
     let pop_up = Paragraph::new(text).wrap(Wrap { trim: false }).block(

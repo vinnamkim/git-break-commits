@@ -1,5 +1,4 @@
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use tui_textarea::Input;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::{App, CurrentScreen};
 

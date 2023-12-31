@@ -43,9 +43,6 @@ impl Tui {
         Ok(())
     }
 
-    // ANCHOR_END: tui_enter
-
-    // ANCHOR: tui_draw
     /// [`Draw`] the terminal interface by [`rendering`] the widgets.
     ///
     /// [`Draw`]: tui::Terminal::draw
@@ -54,9 +51,7 @@ impl Tui {
         self.terminal.draw(|frame| ui::render(app, frame))?;
         Ok(())
     }
-    // ANCHOR_END: tui_draw
 
-    // ANCHOR: tui_exit
     /// Resets the terminal interface.
     ///
     /// This function is also used for the panic hook to revert
@@ -79,7 +74,4 @@ impl Tui {
         self.terminal.show_cursor()?;
         Ok(())
     }
-    // ANCHOR_END: tui_exit
 }
-
-// ANCHOR_END: all

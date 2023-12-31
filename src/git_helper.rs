@@ -211,8 +211,8 @@ impl GitHelper {
 mod tests {
     use std::{
         env,
-        fs::{self, create_dir, File},
-        io::{Error, Write},
+        fs::{create_dir, File},
+        io::Write,
         process::Command,
     };
 
