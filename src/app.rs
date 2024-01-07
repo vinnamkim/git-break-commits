@@ -12,6 +12,7 @@ pub enum CurrentScreen {
     FileNavigator,
     CommitMessageEditor,
     ErrorMessagePopUp(&'static str, Box<CurrentScreen>),
+    HelpMessagePopUp(Box<CurrentScreen>),
 }
 
 #[derive(Debug, Default)]
@@ -241,11 +242,21 @@ impl<'a> App<'a> {
         Ok(())
     }
 
+    pub fn open_help_popup(&mut self) {
+        self.current_screen = CurrentScreen::HelpMessagePopUp(Box::new(
+            self.current_screen.clone(),
+        ));
+    }
+
     pub fn close_popup(&mut self) {
-        if let CurrentScreen::ErrorMessagePopUp(_, prev) =
-            self.current_screen.clone()
-        {
-            self.current_screen = *prev;
+        match &self.current_screen {
+            CurrentScreen::ErrorMessagePopUp(_, prev) => {
+                self.current_screen = *prev.clone();
+            }
+            CurrentScreen::HelpMessagePopUp(prev) => {
+                self.current_screen = *prev.clone();
+            }
+            _ => {}
         }
     }
 

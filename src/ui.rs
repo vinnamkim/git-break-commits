@@ -2,6 +2,17 @@ use crate::app::{App, CurrentScreen};
 use crate::tree::Mark;
 use ratatui::{prelude::*, widgets::*};
 
+const HELP_MESSAGE: &str = r#"
+↑: Move cursor up
+↓: Move cursor down
+←: Go to parent directory
+→: Go to subdirectory
+Space: Select or unselect file/directory
+Enter: Save current selection and go to write the commit message
+q or Ctrl + c: Quit without any change
+h: Open the help pop up message
+"#;
+
 pub fn render(app: &mut App, f: &mut Frame) {
     match app.current_screen {
         CurrentScreen::FileNavigator => render_file_navigator(app, f),
@@ -9,7 +20,12 @@ pub fn render(app: &mut App, f: &mut Frame) {
             render_commit_message_editor(app, f)
         }
         CurrentScreen::ErrorMessagePopUp(msg, _) => {
-            render_error_message_pop_up(f, msg)
+            let title = " Error! Press any key to close this pop up ";
+            render_pop_up(f, msg, title)
+        }
+        CurrentScreen::HelpMessagePopUp(_) => {
+            let title = " Press any key to close this pop up ";
+            render_pop_up(f, HELP_MESSAGE, title)
         }
     }
 }
@@ -63,7 +79,7 @@ pub fn render_file_navigator(app: &mut App, f: &mut Frame) {
     let commit_no = app.commits.len() + 1;
     let (num_total, num_selected) = app.get_stats();
     let text = format!(
-        "[Commit {}] # of total files: {}, # of selected files: {}",
+        "[Commit {}] # of total files: {}, # of selected files: {} (h: help)",
         commit_no, num_total, num_selected
     );
 
@@ -95,17 +111,17 @@ pub fn render_commit_message_editor(app: &mut App, f: &mut Frame) {
     f.render_widget(bottom_widget, chunks[1]);
 }
 
-pub fn render_error_message_pop_up(f: &mut Frame, msg: &str) {
+pub fn render_pop_up(f: &mut Frame, msg: &str, title: &str) {
     let text = msg;
 
     let pop_up = Paragraph::new(text).wrap(Wrap { trim: false }).block(
         Block::default()
             .borders(Borders::ALL)
             .padding(Padding::new(1, 1, 0, 0))
-            .title(" Error! - Press any key to close this pop up - "),
+            .title(title),
     );
 
-    let area = centered_rect(60, 60, f.size());
+    let area = centered_rect(80, 90, f.size());
 
     f.render_widget(pop_up, area);
 }

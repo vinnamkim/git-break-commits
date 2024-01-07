@@ -8,9 +8,8 @@ pub fn update(app: &mut App, key_event: KeyEvent) {
         CurrentScreen::CommitMessageEditor => {
             update_commit_message_editor(app, key_event)
         }
-        CurrentScreen::ErrorMessagePopUp(_, _) => {
-            update_error_message_popup(app)
-        }
+        CurrentScreen::ErrorMessagePopUp(_, _) => app.close_popup(),
+        CurrentScreen::HelpMessagePopUp(_) => app.close_popup(),
     }
 }
 
@@ -22,6 +21,7 @@ fn update_file_navigator(app: &mut App, key_event: KeyEvent) {
                 app.quit()
             }
         }
+        KeyCode::Char('h') | KeyCode::Char('H') => app.open_help_popup(),
         KeyCode::Up => app.items.previous(),
         KeyCode::Down => app.items.next(),
         KeyCode::Right => app.goto_child(),
@@ -47,8 +47,4 @@ fn update_commit_message_editor(app: &mut App, key_event: KeyEvent) {
     }
 
     app.textarea.input(key_event);
-}
-
-fn update_error_message_popup(app: &mut App) {
-    app.close_popup()
 }
