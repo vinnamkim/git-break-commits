@@ -3,14 +3,14 @@ use crate::tree::Mark;
 use ratatui::{prelude::*, widgets::*};
 
 const HELP_MESSAGE: &str = r#"
-↑: Move cursor up
-↓: Move cursor down
-←: Go to parent directory
-→: Go to subdirectory
-Space: Select or unselect file/directory
-Enter: Save current selection and go to write the commit message
-q or Ctrl + c: Quit without any change
-h: Open the help pop up message
+↑: Move the cursor up
+↓: Move the cursor down
+←: Go to the parent directory
+→: Go to the subdirectory
+Space: Select or unselect a file/directory
+Enter: Save the current selection and go to write the commit message
+q or Ctrl + c: Quit without making any changes
+h: Open the help pop-up message
 "#;
 
 pub fn render(app: &mut App, f: &mut Frame) {

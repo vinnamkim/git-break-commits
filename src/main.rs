@@ -47,6 +47,7 @@ $ git commit -m "{msg}"
 #[command(author, version, about = ABOUT)]
 struct Args {
     /// Depth of commits to split
+    #[arg(short, long, default_value_t = 1)]
     depth: u8,
 }
 
