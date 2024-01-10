@@ -3,7 +3,7 @@
 `git-break-commits` is an interactive Command Line Interface (CLI) tool that helps break existing Git commits and reorganize them into new commits.
 Please refer to the following video to see how it works!
 
-[Watch Demo Video](https://github.com/vinnamkim/git-break-commits/assets/26541465/da03b7cb-efb0-43b9-9222-8f10c21bf2f1)
+[Watch Demo Video](https://github.com/vinnamkim/git-break-commits/assets/26541465/fe77d696-abe7-45b1-98c5-d7c108383721)
 
 ## Installation
 
