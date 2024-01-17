@@ -2,12 +2,17 @@
 name = "git-break-commits"
 authors = ["Vinnam Kim <vinnam.kim@gmail.com>"]
 version = "0.1.0"
+homepage = "https://github.com/vinnamkim/git-break-commits"
+repository = "https://github.com/vinnamkim/git-break-commits"
 edition = "2021"
 keywords = ["cli", "git"]
 categories = ["command-line-utilities"]
-publish = false
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+publish = true
+license = "MIT"
+readme = "./README.md"
+description = """
+`git-break-commits` is an interactive Command Line Interface (CLI) tool that helps break existing Git commits and reorganize them into new commits.
+"""
 
 [dependencies]
 tempfile = "3.8.1"
