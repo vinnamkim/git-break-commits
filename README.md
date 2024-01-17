@@ -7,7 +7,7 @@ Please refer to the following video to see how it works!
 
 ## Installation
 
-### 1. Installing from the source
+### 1. Installing from [crates.io](https://crates.io/crates/git-break-commits):
 
 Since `git-break-commits` is built with [Rust](https://www.rust-lang.org), you need to install Rust first if it is not already on your system.
 
@@ -19,7 +19,14 @@ $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 $ export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-Then, clone this repository and install `git-break-commits`.
+Then, please use `cargo install` command such as
+
+```console
+cargo install git-break-commits
+```
+
+### 2. Installing from the source
+Clone this repository and install `git-break-commits`.
 
 ```console
 # Clone this repository
