@@ -3,7 +3,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::{Command, ExitStatus, Output};
 use thiserror::Error;
 
 use tempfile::NamedTempFile;
@@ -14,8 +14,8 @@ pub enum GitCommandError {
     IOError { value: io::Error },
     #[error("Cannot change to UTF8 format")]
     UTF8Error { value: std::str::Utf8Error },
-    #[error("status: {0:?}, stderr: {1:?}", value.status, value.stderr)]
-    GitError { value: Output },
+    #[error("status: {0:?}, stderr: {1:?}", status, stderr)]
+    GitError { status: ExitStatus, stderr: String },
     #[error("Invalid function call")]
     InvalidFunctionCallError,
     #[error("Empty list (level: {0:?}", level)]
@@ -25,6 +25,13 @@ pub enum GitCommandError {
 impl From<std::io::Error> for GitCommandError {
     fn from(value: std::io::Error) -> Self {
         GitCommandError::IOError { value }
+    }
+}
+
+impl From<std::string::FromUtf8Error> for GitCommandError {
+    fn from(value: std::string::FromUtf8Error) -> Self {
+        let error = value.utf8_error();
+        GitCommandError::UTF8Error { value: error }
     }
 }
 
@@ -62,7 +69,10 @@ impl GitHelper {
             .output()?;
 
         if !output.status.success() {
-            return Err(GitCommandError::GitError { value: output });
+            return Err(GitCommandError::GitError {
+                status: output.status,
+                stderr: String::from_utf8(output.stderr)?,
+            });
         }
 
         let branch_name = std::str::from_utf8(output.stdout.as_slice())?
@@ -79,7 +89,10 @@ impl GitHelper {
             .output()?;
 
         if !output.status.success() {
-            return Err(GitCommandError::GitError { value: output });
+            return Err(GitCommandError::GitError {
+                status: output.status,
+                stderr: String::from_utf8(output.stderr)?,
+            });
         }
 
         let diff_list: Vec<PathBuf> =
@@ -116,7 +129,10 @@ impl GitHelper {
             .output()?;
 
         if !output.status.success() {
-            return Err(GitCommandError::GitError { value: output });
+            return Err(GitCommandError::GitError {
+                status: output.status,
+                stderr: String::from_utf8(output.stderr)?,
+            });
         }
 
         self.temp_branch_name = Some(branch_name);
@@ -130,7 +146,10 @@ impl GitHelper {
                 .output()?;
 
             if !output.status.success() {
-                return Err(GitCommandError::GitError { value: output });
+                return Err(GitCommandError::GitError {
+                    status: output.status,
+                    stderr: String::from_utf8(output.stderr)?,
+                });
             }
 
             let output = Command::new("git")
@@ -138,7 +157,10 @@ impl GitHelper {
                 .output()?;
 
             if !output.status.success() {
-                return Err(GitCommandError::GitError { value: output });
+                return Err(GitCommandError::GitError {
+                    status: output.status,
+                    stderr: String::from_utf8(output.stderr)?,
+                });
             }
 
             Ok(output)
@@ -154,7 +176,10 @@ impl GitHelper {
             .output()?;
 
         if !output.status.success() {
-            return Err(GitCommandError::GitError { value: output });
+            return Err(GitCommandError::GitError {
+                status: output.status,
+                stderr: String::from_utf8(output.stderr)?,
+            });
         }
 
         Ok(output)
@@ -164,6 +189,13 @@ impl GitHelper {
         &self,
         commits: &Vec<GitCommitCandidate>,
     ) -> Result<Vec<Output>, GitCommandError> {
+        let args = vec!["rev-parse", "--show-toplevel"];
+        let project_dir = PathBuf::from(
+            String::from_utf8(Command::new("git").args(args).output()?.stdout)?
+                .trim_end_matches("\r\n")
+                .trim_end_matches("\n"),
+        );
+
         let mut outputs = vec![];
 
         for commit in commits {
@@ -195,10 +227,16 @@ impl GitHelper {
                 spec_filepath,
             ];
 
-            let output = Command::new("git").args(args).output()?;
+            let output = Command::new("git")
+                .current_dir(project_dir.as_path())
+                .args(args)
+                .output()?;
 
             if !output.status.success() {
-                return Err(GitCommandError::GitError { value: output });
+                return Err(GitCommandError::GitError {
+                    status: output.status,
+                    stderr: String::from_utf8(output.stderr)?,
+                });
             }
 
             outputs.push(output);
@@ -244,6 +282,10 @@ mod tests {
         println!("{:?}", helper.reset()?);
         let msg = "test".to_owned();
         let commit_cands = vec![GitCommitCandidate { msg, file_paths }];
+
+        // Change to some directory not equal to the project root directory
+        env::set_current_dir(temp_dir.path().join("dir_1"))?;
+
         let outputs = helper.commit(&commit_cands)?;
         assert_eq!(outputs.len(), commit_cands.len());
         for output in outputs {

@@ -17,7 +17,7 @@ pub mod tree;
 
 pub mod git_helper;
 
-use git_helper::GitHelper;
+use git_helper::{GitCommandError, GitHelper};
 
 use app::App;
 use color_eyre::Result;
@@ -86,10 +86,16 @@ fn main() -> Result<()> {
 
     // Apply Git changes
     if app.tree.borrow().num_leaf_node == 0 {
-        git_helper.checkout_to_temp_branch()?;
-        git_helper.reset()?;
-        git_helper.commit(&app.commits)?;
+        let mut do_commit = || -> Result<(), GitCommandError> {
+            git_helper.checkout_to_temp_branch()?;
+            git_helper.reset()?;
+            git_helper.commit(&app.commits)?;
+            Ok(())
+        };
+
+        let result = do_commit();
         git_helper.restore_branch()?;
+        result?;
 
         Ok(())
     } else {
